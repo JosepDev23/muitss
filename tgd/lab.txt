@@ -1,4 +1,4 @@
-Para entrar al laboratorio: http://portal-ng.disc.upv.es/
+Para entrar al laboratorio: http://portal-ng.dsic.upv.es/
 
 máquina virtual oracle: TGD-01-o1 / TGD-01-o2
 máquina virtual cassandra: TGD-01-c1 - TGD-01-c3 (todas)
