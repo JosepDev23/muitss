@@ -1,0 +1,229 @@
+fmod QID# is
+  including QID * (
+  op _+_ to _#+#_,op _-_ to _#-#_,op _*_ to _#*#_,op _/_ to _#/#_,
+  op _<_ to _#<#_,op _<=_ to _#<=#_,op _>_ to _#>#_,op _>=_ to _#>=#_
+  ) .
+endfm
+
+fmod INT# is
+  including INT * (
+  op _+_ to _#+#_,op _-_ to _#-#_,op _*_ to _#*#_,op _/_ to _#/#_,
+  op _<_ to _#<#_,op _<=_ to _#<=#_,op _>_ to _#>#_,op _>=_ to _#>=#_
+  ) .
+endfm
+
+fmod SYNTAX is
+  including INT# .
+  including QID# .
+
+  --- Var
+  sort Var .
+  subsort Qid < Var .
+  ops a b c d e f g h i j k l m n o p q r t u v x y z : -> Var .
+
+  --- AExp
+  sort AExp .
+  subsort Var Int < AExp .
+  ops _+_ _-_ : AExp AExp -> AExp [prec 33 gather (E e)] .
+  ops _*_ _/_ : AExp AExp -> AExp [prec 31 gather (E e)] .
+
+  --- BExp
+  sort BExp .
+  ops true false : -> BExp .
+  ops _<=_ _>=_ _==_ : AExp AExp -> BExp [prec 37] .
+  op _and_ : BExp BExp -> BExp [prec 55] .
+  op _or_ : BExp BExp -> BExp [prec 57] .
+  op not_ : BExp -> BExp [prec 53] .
+
+  --- Stmt
+  sort Stmt .
+  op skip : -> Stmt .
+  op _:=_ : Var AExp -> Stmt [prec 40] .
+  op _;_ : Stmt Stmt -> Stmt [gather (e E) prec 70] .
+  op if_then_else_ : BExp Stmt Stmt -> Stmt [prec 60] .
+  op while__ : BExp Stmt -> Stmt [prec 60] .
+
+  --- Pgm
+  sort Pgm .
+  subsort Stmt < Pgm .
+endfm
+
+--- An example of parsing a program 
+--- Note that the symbol # must precede any number
+parse
+  x := 0 ;
+  n := 0 ; 
+  while (n <= 2) ( 
+    x := x + 1 ;
+    n := n + x 
+  )
+.
+
+fmod VAL is
+  including INT# .
+  sort Val .
+  op bool : Bool -> Val .
+  op int : Int -> Val .
+endfm
+
+fmod VAL-LIST is
+  including VAL .
+  sort ValList .
+  subsort Val < ValList .
+  op _,_ : ValList ValList -> ValList [assoc id: .] .
+  op . : -> ValList .
+endfm
+
+fmod STORE is
+  including SYNTAX .
+  sort Store . 
+  op empty : -> Store . 
+  op [_,_] : Var Int -> Store . 
+  op __ : Store Store -> Store [assoc comm id: empty] . 
+  var X : Var . 
+  vars Store : Store . 
+  vars I I' : Int . 
+  op _[_] : Store Var ~> Int . 
+  eq ([X,I] Store)[X] = I . 
+  op _[_<-_] : Store Var Int -> Store . 
+  eq ([X,I'] Store)[X <- I] = [X,I] Store .
+  eq Store [X <- I] = [X,I] Store [owise] .
+endfm
+
+fmod K-SYNTAX is
+  including SYNTAX .
+  including VAL-LIST .
+  sort KItem . 
+  op aexp : AExp -> KItem .
+  op bexp : BExp -> KItem .
+  op stmt : Stmt -> KItem .
+  sort KList . 
+  subsort K < KList .
+  op _,_ : KList KList -> KList [assoc id: .] .
+  op . : -> KList .
+  op kList : KList -> KItem .
+  op kListL : KList -> KItem .
+  op vList : ValList -> KItem .
+  sort K .
+  subsort KItem < K .
+  op _->_ : K K -> K [assoc id: nothing gather (e E) ] .
+  op nothing : -> K .
+endfm
+
+fmod CONFIGURATION is
+  including K-SYNTAX .
+  including STORE .
+  sort Configuration .
+  op __ : Configuration Configuration -> Configuration [assoc comm id: .] .
+  op . : -> Configuration .
+  op k : K -> Configuration .
+  op store : Store -> Configuration .
+endfm
+
+fmod K-BASIC is
+  including CONFIGURATION .
+  op kv : ValList -> KItem .
+  var Ke : K . 
+  var Kel : KList . 
+  var K : K .
+  var V : Val . 
+  vars Vl Vl' : ValList .
+  var AE : AExp .
+  eq kList(Ke,Kel) = Ke -> kListL(Kel) .
+  eq kList(.) = vList(.) .
+  eq vList(Vl) -> vList(Vl') = vList(Vl,Vl') .
+  eq vList(Vl) -> aexp(AE) = aexp(AE) -> kv(Vl) .
+  eq vList(Vl) -> kListL(Kel) = kList(Kel) -> kv(Vl) .
+  eq vList(Vl) -> kv(Vl') = vList(Vl',Vl) .
+endfm
+
+mod AEXP-K is
+  including CONFIGURATION .
+  including STORE .
+  var I I1 I2 : Int . var X : Var . var K : K .
+  var Store : Store . var A1 A2 : AExp .
+  eq aexp(I) = vList(int(I)) .
+  eq k(aexp(X) -> K) store(Store) = k(vList(int(Store[X])) -> K) store(Store) .
+  ops + - * / : -> KItem .
+  eq aexp(A1 + A2) = kList(aexp(A1),aexp(A2)) -> + .
+  eq vList(int(I1),int(I2)) -> + = vList(int(I1 #+# I2)) .
+  eq aexp(A1 - A2) = kList(aexp(A1),aexp(A2)) -> - .
+  eq vList(int(I1),int(I2)) -> - = vList(int(I1 #-# I2)) .
+  eq aexp(A1 * A2) = kList(aexp(A1),aexp(A2)) -> * .
+  eq vList(int(I1),int(I2)) -> * = vList(int(I1 #*# I2)) .
+  eq aexp(A1 / A2) = kList(aexp(A1),aexp(A2)) -> / .
+  ceq vList(int(I1),int(I2)) -> / = vList(int(I1 quo I2)) if I2 =/= 0 .
+endm
+
+mod BEXP-K is 
+  including CONFIGURATION .
+  var X : Var . var Store : Store . var B B1 B2 : BExp .
+  var A1 A2 : AExp . var I1 I2 : Int . var T T1 T2 : Bool .
+  eq bexp(true) = vList(bool(true)) .
+  eq bexp(false) = vList(bool(false)) .
+  ops <= >= == and or not : -> KItem .
+  eq bexp(A1 <= A2) = kList(aexp(A1),aexp(A2)) -> <= .
+  eq vList(int(I1),int(I2)) -> <= = vList(bool(I1 #<=# I2)) .
+  eq bexp(A1 >= A2) = kList(aexp(A1),aexp(A2)) -> >= .
+  eq vList(int(I1),int(I2)) -> >= = vList(bool(I1 #>=# I2)) .
+  eq bexp(A1 == A2) = kList(aexp(A1),aexp(A2)) -> == .
+  eq vList(int(I1),int(I2)) -> == = vList(bool(I1 == I2)) .
+  eq bexp(B1 and B2) = kList(bexp(B1),bexp(B2)) -> and .
+  eq vList(bool(T1),bool(T2)) -> and = vList(bool(T1 and T2)) .
+  eq bexp(B1 or B2) = kList(bexp(B1),bexp(B2)) -> or .
+  eq vList(bool(T1),bool(T2)) -> or = vList(bool(T1 or T2)) .
+  eq bexp(not B) = bexp(B) -> not .
+  eq vList(bool(T)) -> not = vList(bool(not T)) .
+endm
+
+mod STMT-K is
+  including CONFIGURATION .
+  var X : Var . 
+  var A : AExp . 
+  var St St1 St2 : Stmt .
+  var B : BExp . 
+  var K KTrue KFalse KBool KBody : K .
+  var I : Int . 
+  var Store : Store .
+  eq stmt(skip) = nothing .
+  eq stmt(X := A) = aexp(A) -> write(X) .
+  op write : Var -> KItem .
+  eq k(vList(int(I)) -> write(X) -> K) store(Store) = k(K) store(Store[X <- I]) .
+  eq stmt(St1 ; St2) = stmt(St1) -> stmt(St2) .
+  op if : K K -> KItem .
+  eq stmt(if B then St1 else St2) = bexp(B) -> if(stmt(St1),stmt(St2)) .
+  eq vList(bool(true)) -> if(KTrue,KFalse) = KTrue .
+  eq vList(bool(false)) -> if(KTrue,KFalse) = KFalse .
+  op while : K K -> KItem .
+  eq stmt(while B St) = bexp(B) -> while(bexp(B),stmt(St)) .
+  eq vList(bool(true)) -> while(KBool,KBody) = KBody -> KBool -> while(KBool,KBody) .
+  eq vList(bool(false)) -> while(KBool,KBody) = nothing .
+endm
+
+mod EVAL is
+  including K-BASIC .
+  including AEXP-K .
+  including BEXP-K .
+  including STMT-K .
+  op <_> : Pgm -> Store .
+  op result : Configuration -> Store .
+  var P : Pgm . var I : Int . var Store : Store .
+  eq < P > = result(k(stmt(P)) store(empty)) .
+  eq result(k(nothing) store(Store) ) = Store .
+endm
+
+--- Examples of programs
+red < if true and (true or false) then x := 1 else x := 2 > .
+red < skip > .
+red < x := 100 + 100 > .
+red < x := 1 ; if x == 1 then y := 2 else y := 3 > .
+red < x := 1 ; while (x >= 1) x := x - 1 > .
+red <
+  x := 0 ;
+  n := 0 ; 
+  while (n <= 2) ( 
+    x := x + 1 ;
+    n := n + x 
+  )
+> .
+red < x := 1 ; if 0 >= x + 2 then y := 2 else y := 3 > .
