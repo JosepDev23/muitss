@@ -1,0 +1,737 @@
+*** ******************************* ***
+*** The SIMPLE programming language ***
+*** ******************************* ***
+
+--- ------ ---
+--- SYNTAX ---
+--- ------ ---
+
+fmod QID# is
+  including QID * (
+  op _+_ to _#+#_,op _-_ to _#-#_,op _*_ to _#*#_,op _/_ to _#/#_,
+  op _<_ to _#<#_,op _<=_ to _#<=#_,op _>_ to _#>#_,op _>=_ to _#>=#_
+  ) .
+endfm
+
+fmod INT# is
+  including INT * (
+  op _+_ to _#+#_,op _-_ to _#-#_,op _*_ to _#*#_,op _/_ to _#/#_,
+  op _<_ to _#<#_,op _<=_ to _#<=#_,op _>_ to _#>#_,op _>=_ to _#>=#_
+  ) .
+endfm
+
+fmod NAME is
+  including QID# .
+  sort Name .
+  subsort Qid < Name .
+  --- the following can be used instead of Qids if desired
+  ops a b c d e f g h i j k l m n o p q r s t u v x y z w : -> Name .
+  op main : -> Name .
+endfm
+
+fmod GENERIC-EXP-SYNTAX is
+  including NAME .
+  including INT# .
+  sort Exp .
+  subsorts Int Name < Exp .
+endfm
+
+fmod ARITHMETIC-EXP-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  ops _+_ _-_ : Exp Exp -> Exp [prec 33] .
+  ops _*_ _/_ _%_ : Exp Exp -> Exp [prec 31] .
+endfm
+
+fmod BOOLEAN-EXP-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  ops true false : -> Exp .
+  ops _==_ _!=_ _<_ _>_ _<=_ _>=_ : Exp Exp -> Exp [prec 37] .
+  op _and_ : Exp Exp -> Exp [prec 55] .
+  op _or_ : Exp Exp -> Exp [prec 59] .
+  op not_ : Exp -> Exp [prec 53] .
+endfm
+
+fmod IF-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  op if_then_ : Exp Exp -> Exp .
+  op if_then_else_ : Exp Exp Exp -> Exp .
+endfm
+
+fmod ASSIGNMENT-SYNTAX is
+  including  GENERIC-EXP-SYNTAX .
+  op _=_ : Name Exp -> Exp [prec 41] .
+endfm
+
+fmod SEQ-COMP-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  op _;_ : Exp Exp -> Exp [assoc prec 100] .
+endfm
+
+fmod LIST is 
+  sort List .
+  op nil : -> List . 
+  op _,_ : List List -> List [assoc id: nil] .
+endfm
+
+fmod NAME-LIST is
+  including NAME .
+  including LIST .
+  sort NameList .
+  subsort Name List < NameList .
+  op `(`) : -> NameList .
+  op _,_ : NameList NameList -> NameList [ditto] .
+endfm
+
+fmod BLOCK-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  including NAME-LIST .
+  op {} : -> Exp .
+  op {_} : Exp -> Exp .
+  op {local_:_} : NameList Exp -> Exp .
+endfm
+
+fmod LOOPS-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  op for(_;_;_)_ : Exp Exp Exp Exp -> Exp .
+  op while__ : Exp Exp -> Exp .
+endfm
+
+fmod IO-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  op read : Name -> Exp .
+  op print : Exp -> Exp .
+endfm
+
+fmod EXP-LIST is
+  including GENERIC-EXP-SYNTAX .
+  including NAME-LIST .
+  sort ExpList .
+  subsort Exp NameList < ExpList .
+  op _,_ : ExpList ExpList -> ExpList [ditto] .
+endfm
+
+fmod FUNCTION-SYNTAX is
+  including EXP-LIST .
+  sort Function .
+  op function___ : Name NameList Exp -> Function .
+  op __ : Name ExpList -> Exp [prec 0] .
+  op return : Exp -> Exp .
+endfm
+
+fmod FUNCTION-SET is
+  including FUNCTION-SYNTAX .
+  sort FunctionSet .
+  subsort Function < FunctionSet .
+  op empty : -> FunctionSet .
+  op __ : FunctionSet FunctionSet -> FunctionSet [assoc comm id: empty prec 90] .
+endfm
+
+fmod SIMPLE-SYNTAX is
+  including ARITHMETIC-EXP-SYNTAX .
+  including BOOLEAN-EXP-SYNTAX .
+  including IF-SYNTAX .
+  including ASSIGNMENT-SYNTAX .
+  including SEQ-COMP-SYNTAX .
+  including BLOCK-SYNTAX .
+  including LOOPS-SYNTAX .
+  including IO-SYNTAX .
+  including FUNCTION-SYNTAX .
+  including FUNCTION-SET .
+  sort Pgm .
+  subsort FunctionSet < Pgm .
+  op global_:_ : NameList FunctionSet -> Pgm [prec 100] .
+endfm
+
+parse
+  print(7) ;
+  print(5) ;
+  print(x)
+ .
+
+parse
+  n = 50 ; x = 1 ; y = 1 ;
+  for (i = 0 ; i < n ; i = i + 1) {
+    x = x + y ;
+    y = x - y ;
+    print(y)
+  }
+.
+
+parse { x = x + 1 ; y = x } .
+
+parse
+  n = 50 ; x = 1 ; y = 1 ;
+  for(i = 0 ; i < n ; i = i + 1) {x = x + y ; y = x - y} ;
+  print(y)
+.
+
+parse
+  if 2 > 3 then (if 3 > 4 then 1 else 2) 
+.
+
+parse
+  global x :
+  function f() {
+    x = x + 1 ;
+    return(0)
+  }
+  function main() {
+    x = 0 ;
+    print(x) ;
+    print(f()) ;
+    print(x)
+  }
+.
+
+parse
+  function m(x,y) {
+    if (x > y)
+    then return(x)
+    else return(y)
+  }
+  function main() {
+    print(m(2,3))
+  }
+.
+
+parse
+  global x,y : 
+  function m(x,y) {
+    if (x > y)
+    then return(x)
+    else return(y)
+  }
+  function main() {
+    x = m(2,3) ;
+    y = m(4,5) ;
+    print(m(y, m(m(2,m(x, y)), 9)))
+  }
+.
+
+parse
+  function h(x, y, z, n) {
+    if (n >= 1) then {
+      h(x, z, y, n - 1) ;
+      print(x) ;
+      print(z) ;
+      h(y, x, z, n - 1)
+    }
+  }
+   function main() 
+{
+    local (n) :
+    read(n) ;
+    h(1, 2, 3, n)
+  }
+.
+
+
+parse
+  function f(a) {
+    if a <= 1 then return(1) ;
+    return(f(a - 1) + f(a - 2))
+  }
+  function main() {
+    local (n) :
+    read(n) ;
+    print(f(n))
+  }
+.
+
+parse
+  function p(x,y) {
+    local t, i :
+    t = 1 ;
+    for(i = y ; i != 0 ; i = i - 1) {
+      t = t * x 
+    } ;
+    return(t)
+  }
+  function main() {
+    local (x, y) :
+    read(x) ;
+    read(y) ;
+    return(p(x, y))
+  }
+.
+
+parse
+  function c(n) {
+    local x :
+    x = 0 ;
+    while (n != 1) {
+      x = x + 1 ;
+      if (n == 2 * (n / 2))
+      then n = n / 2
+      else n = 3 * n + 1
+    } ;
+    return(x)
+  }
+  function main() {
+    local (n) :
+    read(n) ;
+    c(n)
+  }
+ .
+
+--- ------ ---
+--- SEMANTICS ---
+--- ------ ---
+
+fmod LOCATION is
+  including INT# .
+  sort Location .
+  op loc : Nat -> Location .
+endfm
+
+fmod LOCATION-LIST is
+  including LOCATION .
+  sort LocationList .
+  subsort Location < LocationList .
+  op nil : -> LocationList .
+  op _,_ : LocationList LocationList -> LocationList [assoc id: nil] .
+endfm
+
+fmod ENVIRONMENT is
+  including NAME-LIST .
+  including LOCATION-LIST .
+  sort Env .
+  op empty : -> Env .
+  op [_,_] : Name Location -> Env .
+  op __ : Env Env -> Env [assoc comm id: empty] .
+  op _[_] : Env Name -> [Location] .
+  op _[_<-_] : Env NameList LocationList -> [Env] .
+  vars X X' : Name .  vars Env : Env .  vars L L' : Location .
+  var Xl : NameList .  var Ll : LocationList .
+  eq ([X,L] Env)[X] = L .
+  eq ([X',L'] Env)[X <- L]
+   = if X == X' then [X',L] Env else [X',L'] (Env[X <- L]) fi .
+  eq empty[X <- L] = [X,L] .
+  eq Env[X,Xl <- L,Ll] = Env[X <- L][Xl <- Ll] .
+  eq Env[nil <- nil] = Env .
+endfm
+
+fmod VALUE is
+  sort Value .
+  op nothing : -> Value .
+endfm
+
+fmod VALUE-LIST is
+  including VALUE .
+  sort ValueList .
+  subsort Value < ValueList .
+  op nil : -> ValueList .
+  op _,_ : ValueList ValueList -> ValueList [assoc id: nil] .
+endfm
+
+fmod STORE is
+  including LOCATION-LIST .
+  including VALUE-LIST .
+  sort Store .
+  op empty : -> Store .
+  op [_,_] : Location Value -> Store .
+  op __ : Store Store -> Store [assoc comm id: empty] .
+  op _[_] : Store Location -> [Value] .
+  op _[_<-_] : Store LocationList ValueList -> [Store] .
+  vars L L' : Location .  var Mem : Store .  vars V V' : Value .
+  var Ll : LocationList .  var Vl : ValueList .
+  eq ([L,V] Mem)[L] = V .
+  eq ([L',V'] Mem)[L <- V]
+   = if L == L' then [L',V] Mem else [L',V'] (Mem[L <- V]) fi .
+  eq empty[L <- V] = [L,V] .
+  eq Mem[L,Ll <- V,Vl] = Mem[L <- V][Ll <- Vl] .
+  eq Mem[nil <- nil] = Mem .
+endfm
+
+fmod CONTINUATION is
+  sorts Continuation ContinuationItem .
+  op stop : -> Continuation .
+  op _->_ : ContinuationItem Continuation -> Continuation .
+endfm
+
+fmod INT-LIST is
+  including EXP-LIST .
+  sort IntList .
+  subsorts Int List < IntList < ExpList .
+  op _,_ : IntList IntList -> IntList [ditto] .
+endfm
+
+fmod SIMPLE-STATE is
+  sorts PLStateAttribute PLState .
+  subsort PLStateAttribute < PLState .
+  including ENVIRONMENT .
+  including STORE .
+  including CONTINUATION .
+  including INT-LIST .
+  including FUNCTION-SET .
+  op empty : -> PLState .
+  op __ : PLState PLState -> PLState [assoc comm id: empty] .
+  op k : Continuation -> PLStateAttribute .
+  op nextLoc : Nat -> PLStateAttribute .
+  op mem : Store -> PLStateAttribute .
+  op input : IntList -> PLStateAttribute .
+  op output : ValueList -> PLStateAttribute .
+  op globalEnv : Env -> PLStateAttribute .
+  op functions : FunctionSet -> PLStateAttribute .
+endfm
+
+fmod SIMPLE-HELPING-OPERATIONS is
+  including NAME-LIST .
+  including EXP-LIST .
+  including SIMPLE-STATE .
+
+  var X : Name .  vars E E' : Exp .  var El : ExpList .  var K : Continuation .
+  vars V : Value .  var Vl : ValueList .  var Xl : NameList .
+  var Env : Env .  var Mem : Store .  var N : Nat .  var L : Location .
+
+  op exp : ExpList Env -> ContinuationItem .
+  op val_ : ValueList -> ContinuationItem .
+  eq k(exp(nil, Env) -> K) = k(val(nil) -> K) .
+  eq k(exp((E,E',El), Env) -> K) = k(exp(E, Env) -> exp((E',El), Env) -> K) .
+  eq k(val(V) -> exp(El, Env) -> K) = k(exp(El, Env) -> val(V) -> K) .
+  eq k(val(Vl) -> val(V) -> K) = k(val(V,Vl) -> K) .
+
+  op writeTo_ : Location -> ContinuationItem .
+  eq k(val(V) -> writeTo(L) -> K) mem(Mem) = k(K) mem(Mem[L <- V]) .
+
+  op bindTo : NameList Env -> ContinuationItem .
+  op env : Env -> ContinuationItem .
+  eq k(val(V,Vl) -> bindTo((X,Xl), Env) -> K)
+     mem(Mem) nextLoc(N)
+   = k(val(Vl) -> bindTo(Xl, Env[X <- loc(N)]) -> K)
+     mem(Mem [loc(N),V]) nextLoc(N #+# 1) .
+  eq k(val(nil) -> bindTo(Xl, Env) -> K) = k(bindTo(Xl, Env) -> K) .
+  eq k(bindTo((X,Xl), Env) -> K) nextLoc(N)
+   = k(bindTo(Xl, Env[X <- loc(N)]) -> K) nextLoc(N #+# 1) .
+  eq k(bindTo(nil, Env) -> K) = k(env(Env) -> K) .
+
+  op exp* : Exp -> ContinuationItem .
+  eq env(Env) -> exp*(E) -> K = exp(E, Env) -> K .
+endfm
+
+fmod GENERIC-EXP-SEMANTICS is
+  including SIMPLE-HELPING-OPERATIONS .
+  op int : Int -> Value .
+  var I : Int .  var X : Name .  var L : Location .  var V : Value .
+  var K : Continuation .  var Env : Env .  var Mem : Store .
+  eq k(exp(I, Env) -> K) = k(val(int(I)) -> K) .
+  eq k(exp(X, ([X,L] Env)) -> K) mem(Mem) = k(val(Mem[L]) -> K) mem(Mem) .
+endfm
+
+fmod ARITHMETIC-EXP-SEMANTICS is
+  including ARITHMETIC-EXP-SYNTAX .
+  including GENERIC-EXP-SEMANTICS .
+  vars E E' : Exp .  var K : Continuation .  vars I I' : Int .  var Env : Env .
+  ops + - * / % : -> ContinuationItem .
+  eq k(exp(E + E', Env) -> K) = k(exp((E,E'),Env) -> + -> K) .
+  eq k(val(int(I),int(I')) -> + -> K) = k(val(int(I #+# I')) -> K) .
+  eq k(exp(E - E', Env) -> K) = k(exp((E,E'), Env) -> - -> K) .
+  eq k(val(int(I),int(I')) -> - -> K) = k(val(int(I #-# I')) -> K) .
+  eq k(exp(E * E', Env) -> K) = k(exp((E,E'), Env) -> * -> K) .
+  eq k(val(int(I),int(I')) -> * -> K) = k(val(int(I #*# I')) -> K) .
+  eq k(exp(E / E', Env) -> K) = k(exp((E,E'), Env) -> / -> K) .
+  ceq k(val(int(I),int(I')) -> / -> K) = k(val(int(I quo I')) -> K) 
+  if I' =/= 0 .
+  eq k(exp(E % E', Env) -> K) = k(exp((E,E'), Env) -> % -> K) .
+  eq k(val(int(I),int(I')) -> % -> K) = k(val(int(I % I')) -> K) .
+endfm
+
+fmod BOOLEAN-EXP-SEMANTICS is
+  including BOOLEAN-EXP-SYNTAX .
+  including GENERIC-EXP-SEMANTICS .
+  op bool : Bool -> Value .
+  ops == != < > <= >= and or not : -> ContinuationItem .
+  vars E E' : Exp .  var K : Continuation .
+  vars I I' : Int .  vars B B' : Bool .  var Env : Env .
+  eq k(exp(true, Env) -> K) = k(val(bool(true)) -> K) .
+  eq k(exp(false, Env) -> K) = k(val(bool(false)) -> K) .
+  eq k(exp(E == E', Env) -> K) = k(exp((E,E'), Env) -> == -> K) .
+  eq k(val(int(I),int(I')) -> == -> K) = k(val(bool(I == I')) -> K) .
+  eq k(exp(E != E', Env) -> K) = k(exp((E,E'), Env) -> != -> K) .
+  eq k(val(int(I),int(I')) -> != -> K) = k(val(bool(I =/= I')) -> K) .
+  eq k(exp(E < E', Env) -> K) = k(exp((E,E'), Env) -> < -> K) .
+  eq k(val(int(I),int(I')) -> < -> K) = k(val(bool(I #<# I')) -> K) .
+  eq k(exp(E > E', Env) -> K) = k(exp((E,E'), Env) -> > -> K) .
+  eq k(val(int(I),int(I')) -> > -> K) = k(val(bool(I #># I')) -> K) .
+  eq k(exp(E <= E', Env) -> K) = k(exp((E,E'), Env) -> <= -> K) .
+  eq k(val(int(I),int(I')) -> <= -> K) = k(val(bool(I #<=# I')) -> K) .
+  eq k(exp(E >= E', Env) -> K) = k(exp((E,E'), Env) -> >= -> K) .
+  eq k(val(int(I),int(I')) -> >= -> K) = k(val(bool(I #>=# I')) -> K) .
+  eq k(exp(E and E', Env) -> K) = k(exp((E,E'), Env) -> and -> K) .
+  eq k(val(bool(B),bool(B')) -> and -> K) = k(val(bool(B and B')) -> K) .
+  eq k(exp(E or E', Env) -> K) = k(exp((E,E'), Env) -> or -> K) .
+  eq k(val(bool(B),bool(B')) -> or -> K) = k(val(bool(B or B')) -> K) .
+  eq k(exp(not E, Env) -> K) = k(exp(E, Env) -> not -> K) .
+  eq k(val(bool(B)) -> not -> K) = k(val(bool(not B)) -> K) .
+endfm
+
+fmod IF-SEMANTICS is
+  including IF-SYNTAX .
+  including BLOCK-SYNTAX .
+  including BOOLEAN-EXP-SEMANTICS .
+  vars BE E E' : Exp .  var K : Continuation .
+  var B : Bool .  var Env : Env .
+  op if : Exp Exp Env -> ContinuationItem .
+  eq if BE then E = if BE then E else {} .
+  eq k(exp(if BE then E else E', Env) -> K)
+   = k(exp(BE,Env) -> if(E,E',Env) -> K) .
+  eq k(val(bool(B)) -> if(E,E',Env) -> K)
+   = k(exp(if B then E else E' fi, Env) -> K) .
+endfm
+
+fmod ASSIGNMENT-SEMANTICS is
+  including ASSIGNMENT-SYNTAX .
+  including GENERIC-EXP-SEMANTICS .
+  var X : Name .  var E : Exp .  var K : Continuation .
+  var Env : Env .  var L : Location .
+  eq k(exp(X = E, ([X,L] Env)) -> K)
+   = k(exp(E, ([X,L] Env)) -> writeTo(L) -> val(nothing) -> K) .
+endfm
+
+fmod SEQ-COMP-SEMANTICS is
+  including SEQ-COMP-SYNTAX .
+  including GENERIC-EXP-SEMANTICS .
+  op discard : -> ContinuationItem .
+  vars E E' : Exp .  var K : Continuation .  var V : Value .  var Env : Env .
+  eq k(exp((E ; E'), Env) -> K)
+   = k(exp(E, Env) -> discard -> exp(E', Env) -> K) .
+  eq k(val(V) -> discard -> K) = k(K) .
+endfm
+
+fmod BLOCK-SEMANTICS is
+  including BLOCK-SYNTAX .
+  including GENERIC-EXP-SEMANTICS .
+  var E : Exp .  var K : Continuation .  var Env : Env .
+  eq k(exp({}, Env) -> K) = k(val(nothing) -> K) .
+  eq k(exp({E}, Env) -> K) = k(exp(E, Env) -> K) .
+endfm
+
+fmod LOOPS-SEMANTICS is
+  including LOOPS-SYNTAX .
+  including IF-SEMANTICS .
+  including BLOCK-SEMANTICS .
+  including SEQ-COMP-SEMANTICS .
+  vars Start Cond Step Body : Exp .  var K : Continuation .  var Env : Env .
+  eq for(Start ; Cond ; Step) Body = Start ; while Cond {Body ; Step} .
+  eq k(exp(while Cond Body, Env) -> K)
+   = k(exp(Cond, Env) -> if((Body ; while Cond Body), {}, Env) -> K) .
+endfm
+
+fmod IO-SEMANTICS is
+  including IO-SYNTAX .
+  including GENERIC-EXP-SEMANTICS .
+  var X : Name .  var L : Location .  var K : Continuation .
+  var Env : Env .  var I : Int .  var Il : IntList .  var E : Exp .
+  var V : Value .  var Vl : ValueList .
+  op print : -> ContinuationItem .
+  eq k(exp(read(X), ([X,L] Env)) -> K) input(I,Il)
+   = k(val(int(I)) -> writeTo(L) -> val(nothing) -> K) input(Il) .
+  eq k(exp(print(E), Env) -> K) = k(exp(E, Env) -> print -> K) .
+  eq k(val(V) -> print -> K) output(Vl)
+   = k(val(nothing) -> K) output(Vl,V) .
+endfm
+
+fmod FUNCTION-SEMANTICS is
+  including FUNCTION-SET .
+  including GENERIC-EXP-SEMANTICS .
+  including BLOCK-SYNTAX .
+  op apply : Name -> ContinuationItem .
+  ops function-call return : -> ContinuationItem .
+  var F : Name .  vars Xl LXl : NameList .  var E : Exp .  var El : ExpList .
+  var Env : Env .  var K : Continuation .  var V : Value .
+  var Vl : ValueList .  var Fs : FunctionSet .  var Ci : ContinuationItem .
+  eq () = nil .
+  eq function F(Xl) {E} = function F(Xl) { local (nil) : E } .
+
+  eq k(exp(F(El), Env) -> K) = k(exp(El, Env) -> apply(F) -> K) .
+  eq k(val(Vl) -> apply(F) -> K)
+     globalEnv(Env) functions(function F(Xl) {local (LXl) : E} Fs)
+   = k(val(Vl) -> bindTo((Xl,LXl), Env) -> exp*(E) -> function-call -> K)
+     globalEnv(Env) functions(function F(Xl) {local (LXl) : E} Fs) .
+
+  eq k(exp(return(E), Env) -> K) = k(exp(E, Env) -> return -> K) .
+  eq k(val(V) -> return -> Ci -> K)
+   = if Ci == function-call then k(val(V) -> K)
+     else k(val(V) -> return -> K) fi .
+  eq k(val(V) -> function-call -> K) = k(val(V) -> K) .
+endfm
+
+fmod SIMPLE-SEMANTICS is
+  including SIMPLE-SYNTAX .
+  including ARITHMETIC-EXP-SEMANTICS .
+  including BOOLEAN-EXP-SEMANTICS .
+  including IF-SEMANTICS .
+  including ASSIGNMENT-SEMANTICS .
+  including SEQ-COMP-SEMANTICS .
+  including BLOCK-SEMANTICS .
+  including LOOPS-SEMANTICS .
+  including IO-SEMANTICS .
+  including FUNCTION-SEMANTICS .
+
+  op eval_|_ : Pgm IntList -> [ValueList] .
+  op eval_|_ : FunctionSet IntList -> [ValueList] .
+  op [_] : PLState -> [Value] .
+
+  var Fs : FunctionSet .  var Il : IntList .  var Xl : NameList .
+  var Mem : Store . var Env : Env . vars Ol Vl : ValueList . var N : Nat .
+  eq eval Fs | Il = eval (global nil : Fs) | Il .
+  eq eval (global Xl : Fs) | Il
+   = [k(exp(main(), empty) -> stop) nextLoc(#(Xl) #+# 1) mem(empty)
+     input(Il) output(nil) globalEnv(empty[Xl <- locs(#(Xl))]) functions(Fs)] .
+
+  eq [k(val(Vl) -> stop) nextLoc(N) mem(Mem) input(Il) output(Ol) 
+      globalEnv(Env) functions(Fs)] = Ol,Vl .
+
+--- some auxilliary operators needed only here
+  op locs : Nat -> LocationList .
+  eq locs(N) = if N == 0 then nil else locs(N #-# 1), loc(N) fi .
+
+  op # : ExpList -> Nat .
+  var X : Name .
+  eq #(X,Xl) = 1 #+# #(Xl) .
+  eq #(nil) = 0 .
+endfm
+
+red eval 
+  function main () {
+    local n, x, y, i :
+    n = 50 ; x = 1 ; y = 1 ;
+    for(i = 0 ; i < n ; i = i + 1) {
+      x = x + y ;
+      y = x - y
+    } ;
+    print(y) ;
+    return(y)
+  }
+| nil .
+
+red eval
+  global x : 
+  function f() {
+    x = x + 1 ;
+    return(0)
+  }
+  function main() {
+    x = 0 ;
+    print(x) ;
+    f() ;
+    print(x)
+  }
+| nil .
+
+red eval
+  global y : 
+  function f() {
+    local x :
+    x = 1 ;
+    y = 1 ;
+    return(0)
+  }
+  function main() {
+    local x :
+    x = 0 ;
+    print(x) ;
+    f() ;
+    print(x) ;
+    print(y)
+  }
+| nil .
+
+red eval 
+  function m(x,y) {
+    if (x > y)
+    then return(x)
+    else return(y)
+  }
+  function main() {
+    print(m(2,3))
+  }
+| nil .
+
+*** Example max function
+red eval
+  global x,y : 
+  function m(x,y) {
+    if (x > y)
+    then return(x)
+    else return(y)
+  }
+  function main() {
+    x = m(2,3) ;
+    y = m(4,5) ;
+    print(m(y, m(m(2,m(x, y)), 9)))
+  }
+| nil .
+
+red eval 
+  function h(x, y, z, n) {
+    if (n >= 1) then {
+      h(x, z, y, n - 1) ;
+      print(x) ;
+      print(z) ;
+      h(y, x, z, n - 1)
+    }
+  }
+  function main() {
+    local n :
+    read(n) ;
+    h(1, 2, 3, n)
+  }
+| 3 .
+
+red eval
+  function f(a) {
+    if a <= 1 then return(1) ;
+    return(f(a - 1) + f(a - 2))
+  }
+  function main() {
+    local n :
+    read(n) ;
+    print(f(n))
+  }
+| 10 .
+
+red eval
+  function p(x,y) {
+    local t, i :
+    t = 1 ;
+    for(i = y ; i != 0 ; i = i - 1) {
+      t = t * x 
+    } ;
+    return(t)
+  }
+  function main() {
+    local x, y :
+    read(x) ;
+    read(y) ;
+    return(p(x, y))
+  }
+| 10,20 .
+
+red eval
+  function c(n) {
+    local x :
+    x = 0 ;
+    while (n != 1) {
+      x = x + 1 ;
+      if (n == 2 * (n / 2))
+      then n = n / 2
+      else n = 3 * n + 1
+    } ;
+    return(x)
+  }
+  function main() {
+    local n :
+    read(n) ;
+    c(n)
+  }
+| 1008390274896429876329817983421 .
+
+red eval
+  function f(n) { 
+    return(0) 
+  } 
+  function main() {
+    f(1 / 0) 
+  } 
+| nil .
