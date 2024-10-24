@@ -35,3 +35,67 @@ search eval(
       [x,y]
     } 
 )  =>! X:[Value] .
+
+search eval( 
+    let z = 0
+    in let f(x,y) = x + y
+      in {
+      spawn(z := f(z,1));
+      spawn(z := f(z,2));
+      while (z == 0) {} ;
+      z
+    } 
+)  =>! X:[Value] .
+
+search eval( 
+    let z = 0
+    in let f(y) = z := z + y
+      in {
+      spawn(f(1));
+      spawn(f(2));
+      while (z == 0) {} ;
+      z
+    } 
+)  =>! X:[Value] .
+
+search eval( 
+    let z = 0
+    in let f(y) = spawn(z := z + y)
+      in {
+      f(1);
+      f(2);
+      while (z == 0) {} ;
+      z
+    } 
+)  =>! X:[Value] .
+
+search eval( 
+    let z = 0
+    in let f(y) = spawn(z := z + y)
+      in {
+      spawn(f(1));
+      spawn(f(2));
+      while (z == 0) {} ;
+      z
+    } 
+)  =>! X:[Value] .
+
+search eval( 
+    let x = 0 and y = 0
+    in let rec f() = {f(); spawn(x := x + y)}
+      in {
+      f(); y := 1 ;
+      while (y == 0) {} ;
+      x
+    } 
+)  =>! X:[Value] .
+
+search eval( 
+    let x = 0 and y = 0
+    in let rec f() = {spawn(x := x + y); f()}
+      in {
+      f(); y := 1 ;
+      while (y == 0) {} ;
+      x
+    } 
+)  =>! X:[Value] .
