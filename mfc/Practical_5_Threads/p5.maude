@@ -1,0 +1,37 @@
+search eval( 
+    let x = 0 
+    in { 
+      spawn(x := x + 1) ; 
+      spawn(x := x + 1) ; 
+      x 
+    } 
+)  =>! X:[Value] .
+
+search eval( 
+    let x = 0
+    in {
+      spawn(acquire lock(1); x := x + 1 ; release lock(1)) ;
+      spawn(acquire lock(1); x := x + 1 ; release lock(1)) ;
+      x
+    } 
+)  =>! X:[Value] .
+
+search eval( 
+    let x = 0 and y = 0
+    in {
+      spawn(x := x + 1 ; y := 1) ;
+      spawn(x := x + 1 ; y := 2) ;
+      while (y == 0) {} ;
+      [x,y]
+    } 
+)  =>! X:[Value] .
+
+search eval( 
+    let x = 0 and y = 0
+    in {
+      spawn(acquire lock(1); x := x + 1 ; y := 1 ; release lock(1)) ;
+      spawn(acquire lock(1); x := x + 1 ; y := 2 ; release lock(1)) ;
+      while (y == 0) {} ;
+      [x,y]
+    } 
+)  =>! X:[Value] .

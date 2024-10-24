@@ -1,0 +1,688 @@
+------------------
+--- FUN Syntax ---
+------------------
+
+fmod QID# is
+  including QID * (
+  op _+_ to _#+#_,op _-_ to _#-#_,op _*_ to _#*#_,op _/_ to _#/#_,
+  op _<_ to _#<#_,op _<=_ to _#<=#_,op _>_ to _#>#_,op _>=_ to _#>=#_
+  ) .
+endfm
+
+fmod INT# is
+  including INT * (
+  op _+_ to _#+#_,op _-_ to _#-#_,op _*_ to _#*#_,op _/_ to _#/#_,
+  op _<_ to _#<#_,op _<=_ to _#<=#_,op _>_ to _#>#_,op _>=_ to _#>=#_
+  ) .
+endfm
+
+fmod NAME is
+  including QID# .
+  sort Name .
+  subsort Qid < Name .
+  ops a b c d e f g h i j k l m n o p q r s t u v x y z w : -> Name .
+endfm
+
+fmod NAME-LIST is
+  including NAME .
+  sort NameList .
+  subsort Name < NameList .
+  op `(`) : -> NameList .
+  op _,_ : NameList NameList -> NameList [assoc id: ()] .
+endfm
+
+fmod GENERIC-EXP-SYNTAX is
+  including NAME .
+  including INT# .
+  sort Exp .
+  subsorts Int Name < Exp .
+endfm
+
+fmod EXP-LIST is
+  including GENERIC-EXP-SYNTAX .
+  including NAME-LIST .
+  sort ExpList .
+  subsorts Exp NameList < ExpList .
+  op _,_ : ExpList ExpList -> ExpList [ditto] .
+endfm
+
+fmod ARITHMETIC-EXP-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  ops _+_ _-_ : Exp Exp -> Exp [prec 33 gather (E e)] .
+  ops _*_ _/_ _%_ : Exp Exp -> Exp [prec 31 gather (E e)] .
+endfm
+
+fmod BOOLEAN-EXP-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  ops true false : -> Exp .
+  ops _==_ _<=_ _>=_ _and_ _or_ : Exp Exp -> Exp .
+  op not_ : Exp -> Exp .
+endfm
+
+fmod IF-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  op if_then_else_ : Exp Exp Exp -> Exp .
+endfm
+
+fmod FUNCTION-SYNTAX is
+  including EXP-LIST .
+  op fun_->_ : NameList Exp -> Exp .
+  op __ : Exp ExpList -> Exp [prec 0] .
+endfm
+
+fmod BINDING-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  including NAME-LIST .
+  sorts Binding Bindings .
+  subsort Binding < Bindings .
+  op _=_ : Exp Exp -> Binding .
+  op _and_ : Bindings Bindings -> Bindings [assoc prec 100] .
+endfm
+
+fmod LET-SYNTAX is
+  including BINDING-SYNTAX .
+  op let_in_ : Bindings Exp -> Exp .
+endfm
+
+fmod LETREC-SYNTAX is
+  including BINDING-SYNTAX .
+  op let`rec_in_ : Bindings Exp -> Exp .
+endfm
+
+fmod LIST-SYNTAX is
+  including EXP-LIST .
+  op [] : -> Exp .
+  op [_] : ExpList -> Exp .
+  ops car cdr null? : Exp -> Exp .
+  op cons : Exp Exp -> Exp .
+endfm
+
+fmod ASSIGNMENT-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  op _:=_ : Name Exp -> Exp .
+endfm
+
+fmod SEQ-COMP-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  op _;_ : Exp Exp -> Exp [assoc prec 50] .
+endfm
+
+fmod BLOCK-SYNTAX is
+  including SEQ-COMP-SYNTAX .
+  op {} : -> Exp .
+  op {_} : Exp -> Exp .
+endfm
+
+fmod LOOP-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  op while__ : Exp Exp -> Exp .
+  op for(_;_;_)_ : Exp Exp Exp Exp -> Exp .
+endfm
+
+fmod FUN-SYNTAX is
+  including ARITHMETIC-EXP-SYNTAX .
+  including BOOLEAN-EXP-SYNTAX .
+  including IF-SYNTAX .
+  including FUNCTION-SYNTAX .
+  including LET-SYNTAX .
+  including LETREC-SYNTAX .
+  including LIST-SYNTAX .
+  including ASSIGNMENT-SYNTAX .
+  including SEQ-COMP-SYNTAX .
+  including BLOCK-SYNTAX .
+  including LOOP-SYNTAX .
+endfm
+
+
+---------------------
+--- Fun Semantics ---
+---------------------
+
+fmod LOCATION is
+  including INT# .
+  sort Location .
+  op loc : Nat -> Location .
+endfm
+
+fmod LOCATION-LIST is
+  including LOCATION .
+  sort LocationList .
+  subsort Location < LocationList .
+  op nil : -> LocationList .
+  op _,_ : LocationList LocationList -> LocationList [assoc id: nil] .
+  op locs : Nat Nat -> LocationList .
+  vars N # : Nat .
+  eq locs(N, 0) = nil .
+  eq locs(N, #) = loc(N), locs(N #+# 1, # #-# 1) .
+endfm
+
+fmod ENVIRONMENT is
+  including NAME-LIST .
+  including LOCATION-LIST .
+  sort Env .
+  op empty : -> Env .
+  op [_,_] : Name Location -> Env .
+  op __ : Env Env -> Env [assoc comm id: empty] .
+  op _[_] : Env Name -> [Location] .
+  op _[_<-_] : Env NameList LocationList -> [Env] .
+  vars X X' : Name .  vars Env : Env .  vars L L' : Location .
+  var Xl : NameList .  var Ll : LocationList .
+  eq ([X,L] Env)[X] = L .
+  eq ([X',L'] Env)[X <- L] = if X == X' then [X',L] Env else [X',L'] (Env[X <- L]) fi .
+  eq empty[X <- L] = [X,L] .
+  eq Env[X,Xl <- L,Ll] = Env[X <- L][Xl <- Ll] .
+  eq Env[() <- nil] = Env .
+endfm
+
+fmod VALUE is
+  sort Value .
+  op nothing : -> Value .
+endfm
+
+fmod VALUE-LIST is
+  including VALUE .
+  sort ValueList .
+  subsort Value < ValueList .
+  op nil : -> ValueList .
+  op _,_ : ValueList ValueList -> ValueList [assoc id: nil] .
+endfm
+
+fmod STORE is
+  including LOCATION-LIST .
+  including VALUE-LIST .
+  sort Store .
+  op empty : -> Store .
+  op [_,_] : Location Value -> Store .
+  op __ : Store Store -> Store [assoc comm id: empty] .
+  op _[_] : Store Location -> [Value] .
+  op _[_<-_] : Store LocationList ValueList -> [Store] .
+  vars L L' : Location .  var Mem : Store .  vars V V' : Value .
+  var Ll : LocationList .  var Vl : ValueList .
+  eq ([L,V] Mem)[L] = V .
+  eq ([L',V'] Mem)[L <- V] = if L == L' then [L',V] Mem else [L',V'] (Mem[L <- V]) fi .
+  eq empty[L <- V] = [L,V] .
+  eq Mem[L,Ll <- V,Vl] = Mem[L <- V][Ll <- Vl] .
+  eq Mem[nil <- nil] = Mem .
+endfm
+
+fmod CONTINUATION is
+  sorts Continuation ContinuationItem .
+  op stop : -> Continuation .
+  op _->_ : ContinuationItem Continuation -> Continuation .
+endfm
+
+fmod FUN-STATE is
+  sorts PLStateAttribute PLState .
+  subsort PLStateAttribute < PLState .
+  including ENVIRONMENT .
+  including STORE .
+  including CONTINUATION .
+  op empty : -> PLState .
+  op __ : PLState PLState -> PLState [assoc comm id: empty] .
+  op nextLoc : Nat -> PLStateAttribute .
+  op mem : Store -> PLStateAttribute .
+  op k : Continuation -> PLStateAttribute .
+endfm
+
+mod FUN-HELPING-OPERATIONS is
+  including NAME-LIST .
+  including EXP-LIST .
+  including FUN-STATE .
+
+  var X : Name .  vars E E' : Exp .  var El : ExpList .  var K : Continuation .
+  vars V : Value .  var Vl : ValueList .  var Xl : NameList .
+  var Env : Env .  var Mem : Store .  var N : Nat .  var Ll : LocationList .
+
+  op exp : ExpList Env -> ContinuationItem .
+  op val_ : ValueList -> ContinuationItem .
+  eq k(exp((), Env) -> K) = k(val(nil) -> K) .
+  eq k(exp((E,E',El), Env) -> K) = k(exp(E, Env) -> exp((E',El), Env) -> K) .
+  eq k(val(V) -> exp(El, Env) -> K) = k(exp(El, Env) -> val(V) -> K) .
+  eq k(val(Vl) -> val(V) -> K) = k(val(V,Vl) -> K) .
+
+  op bindTo : NameList Env -> ContinuationItem .
+  op bindTo : NameList Env LocationList -> ContinuationItem .
+  eq bindTo(Xl,Env) = bindTo(Xl, Env, nil) .
+  eq k(val(V,Vl) -> bindTo((X,Xl), Env, Ll) -> K)
+     mem(Mem) nextLoc(N)
+   = k(val(Vl) -> bindTo(Xl, Env[X <- loc(N)], (Ll,loc(N))) -> K)
+     mem(Mem [loc(N),V]) nextLoc(N #+# 1) .
+  eq k(val(nil) -> bindTo((), Env, Ll) -> K) = k(pair(Env, Ll) -> K) .
+  eq k(bindTo((X,Xl), Env, Ll) -> K) nextLoc(N)
+   = k(bindTo(Xl, Env[X <- loc(N)], (Ll,loc(N))) -> K) nextLoc(N #+# 1) .
+  eq k(bindTo((), Env, Ll) -> K) = k(pair(Env,Ll) -> K) .
+
+  op writeTo_ : LocationList -> ContinuationItem .
+  eq k(val(Vl) -> writeTo(Ll) -> K) mem(Mem)
+   = k(K) mem(Mem[Ll <- Vl]) .
+
+  op pair : Env LocationList -> ContinuationItem .
+  ops exp exp* : ExpList -> ContinuationItem .
+  op writeTo : -> ContinuationItem .
+  eq pair(Env,Ll) -> exp(El) -> K = exp(El, Env) -> pair(Env, Ll) -> K .
+  eq pair(Env,Ll) -> writeTo -> K = writeTo(Ll) -> pair(Env,Ll) -> K .
+  eq pair(Env,Ll) -> exp*(E) -> K = exp(E, Env) -> K .
+
+  op discard : -> ContinuationItem .
+  eq k(val(Vl) -> discard -> K) = k(K) .
+endm
+
+mod GENERIC-EXP-SEMANTICS is
+  including FUN-HELPING-OPERATIONS .
+  op int : Int -> Value .
+  var I : Int .  var X : Name .  var L : Location .  var V : Value .
+  var K : Continuation .  var Env : Env .  var Mem : Store .
+
+  eq k(exp(I, Env) -> K) = k(val(int(I)) -> K) .
+  eq k(exp(X, ([X,L] Env)) -> K) mem(Mem)
+   = k(val(Mem[L]) -> K) mem(Mem) .
+endm
+
+mod ARITHMETIC-EXP-SEMANTICS is
+  including ARITHMETIC-EXP-SYNTAX .
+  including GENERIC-EXP-SEMANTICS .
+  vars E E' : Exp .  var K : Continuation .  vars I I' : Int .  var Env : Env .
+  ops + - * / % : -> ContinuationItem .
+  eq k(exp(E + E', Env) -> K) = k(exp((E,E'),Env) -> + -> K) .
+  eq k(val(int(I),int(I')) -> + -> K) = k(val(int(I #+# I')) -> K) .
+  eq k(exp(E - E', Env) -> K) = k(exp((E,E'), Env) -> - -> K) .
+  eq k(val(int(I),int(I')) -> - -> K) = k(val(int(I #-# I')) -> K) .
+  eq k(exp(E * E', Env) -> K) = k(exp((E,E'), Env) -> * -> K) .
+  eq k(val(int(I),int(I')) -> * -> K) = k(val(int(I #*# I')) -> K) .
+  eq k(exp(E / E', Env) -> K) = k(exp((E,E'), Env) -> / -> K) .
+  ceq k(val(int(I),int(I')) -> / -> K) = k(val(int(I quo I')) -> K) 
+  if I' =/= 0 .
+  eq k(exp(E % E', Env) -> K) = k(exp((E,E'), Env) -> % -> K) .
+  ceq k(val(int(I),int(I')) -> % -> K) = k(val(int(I rem I')) -> K) 
+  if I' =/= 0 .
+endm
+
+mod BOOLEAN-EXP-SEMANTICS is
+  including BOOLEAN-EXP-SYNTAX .
+  including GENERIC-EXP-SEMANTICS .
+  op bool : Bool -> Value .
+  ops == <= >= and or not : -> ContinuationItem .
+  vars E E' : Exp .  var K : Continuation .
+  vars I I' : Int .  vars B B' : Bool .  var Env : Env .
+  eq k(exp(true, Env) -> K) = k(val(bool(true)) -> K) .
+  eq k(exp(false, Env) -> K) = k(val(bool(false)) -> K) .
+  eq k(exp(E == E', Env) -> K) = k(exp((E,E'), Env) -> == -> K) .
+  eq k(val(int(I),int(I')) -> == -> K) = k(val(bool(I == I')) -> K) .
+  eq k(exp(E <= E', Env) -> K) = k(exp((E,E'), Env) -> <= -> K) .
+  eq k(val(int(I),int(I')) -> <= -> K) = k(val(bool(I #<=# I')) -> K) .
+  eq k(exp(E >= E', Env) -> K) = k(exp((E,E'), Env) -> >= -> K) .
+  eq k(val(int(I),int(I')) -> >= -> K) = k(val(bool(I #>=# I')) -> K) .
+  eq k(exp(E and E', Env) -> K) = k(exp((E,E'), Env) -> and -> K) .
+  eq k(val(bool(B),bool(B')) -> and -> K) = k(val(bool(B and B')) -> K) .
+  eq k(exp(E or E', Env) -> K) = k(exp((E,E'), Env) -> or -> K) .
+  eq k(val(bool(B),bool(B')) -> or -> K) = k(val(bool(B or B')) -> K) .
+  eq k(exp(not E, Env) -> K) = k(exp(E, Env) -> not -> K) .
+  eq k(val(bool(B)) -> not -> K) = k(val(bool(not B)) -> K) .
+endm
+
+mod IF-SEMANTICS is
+  including IF-SYNTAX .
+  including BOOLEAN-EXP-SEMANTICS .
+  vars BE E E' : Exp .  var K : Continuation .
+  var B : Bool .  var Env : Env .
+  op if : Exp Exp Env -> ContinuationItem .
+  eq k(exp(if BE then E else E', Env) -> K)
+   = k(exp(BE,Env) -> if(E,E',Env) -> K) .
+  eq k(val(bool(B)) -> if(E,E',Env) -> K)
+   = k(exp(if B then E else E' fi, Env) -> K) .
+endm
+
+mod FUNCTION-SEMANTICS is
+  including GENERIC-EXP-SEMANTICS .
+  including FUNCTION-SYNTAX .
+  op closure : NameList Exp Env -> Value .
+  op apply : -> ContinuationItem .
+  var Xl : NameList .  vars F Body : Exp .  var K : Continuation .
+  var Env : Env .  var El : ExpList .  var Vl : ValueList .
+  eq k(exp(fun Xl -> Body, Env) -> K) = k(val(closure(Xl, Body, Env)) -> K) .
+  eq k(exp(F(El), Env) -> K) = k(exp((F,El), Env) -> apply -> K) .
+  eq k(val(closure(Xl, Body, Env),Vl) -> apply -> K)
+   = k(val(Vl) -> bindTo(Xl, Env) -> exp*(Body) -> K) .
+endm
+
+mod BINDING-SEMANTICS is
+  including BINDING-SYNTAX .
+  including FUNCTION-SEMANTICS .
+  op `(_,_`) : NameList ExpList -> Bindings .
+  var X : Name .  vars Xl Xl' : NameList .
+  var E : Exp .  vars El El' : ExpList .
+  eq (X(Xl) = E) = (X = fun Xl -> E) .
+  eq (X = E) = (X, E) .
+  eq (Xl, El) and (Xl', El') = ((Xl,Xl'), (El,El')) .
+endm
+
+mod LET-SEMANTICS is
+  including LET-SYNTAX .
+  including BINDING-SEMANTICS .
+  var Xl : NameList .  var El : ExpList .  var E : Exp .
+  var K : Continuation .  var Env : Env .
+  eq k(exp(let (Xl,El) in E, Env) -> K)
+   = k(exp(El, Env) -> bindTo(Xl, Env) -> exp*(E) -> K) .
+endm
+
+mod LETREC-SEMANTICS is
+  including LETREC-SYNTAX .
+  including BINDING-SEMANTICS .
+  var Xl : NameList .  var K : Continuation .
+  var El : ExpList .  var E : Exp .  var Env : Env .
+  eq k(exp(let rec (Xl,El) in E, Env) -> K)
+   = k(bindTo(Xl,Env) -> exp(El) -> writeTo -> exp*(E) -> K) .
+endm
+
+mod LIST-SEMANTICS is
+  including LIST-SYNTAX .
+  including BOOLEAN-EXP-SEMANTICS .
+  op [_] : ValueList -> Value .
+  ops mkList car cdr cons null? : -> ContinuationItem .
+  vars E E' : Exp .  var El : ExpList .  var Env : Env .
+  var K : Continuation .  var V : Value .  var Vl : ValueList .
+  eq k(exp([], Env) -> K) = k(val([nil]) -> K) .
+  eq k(exp([El], Env) -> K) = k(exp(El, Env) -> mkList -> K) .
+  eq k(val(Vl) -> mkList -> K) = k(val([Vl]) -> K) .
+  eq k(exp(car(E), Env) -> K) = k(exp(E, Env) -> car -> K) .
+  eq k(val([V,Vl]) -> car -> K) = k(val(V) -> K) .
+  eq k(exp(cdr(E), Env) -> K) = k(exp(E, Env) -> cdr -> K) .
+  eq k(val([V,Vl]) -> cdr -> K) = k(val([Vl]) -> K) .
+  eq k(exp(cons(E,E'), Env) -> K) = k(exp((E,E'), Env) -> cons -> K) .
+  eq k(val(V,[Vl]) -> cons -> K) = k(val([V,Vl]) -> K) .
+  eq k(exp(null?(E), Env) -> K) = k(exp(E, Env) -> null? -> K) .
+  eq k(val([Vl]) -> null? -> K) = k(val(bool(Vl == nil)) -> K) .
+endm
+
+mod ASSIGNMENT-SEMANTICS is
+  including ASSIGNMENT-SYNTAX .
+  including GENERIC-EXP-SEMANTICS .
+  var X : Name .  var E : Exp .  var K : Continuation .
+  var Env : Env .  var L : Location .
+  eq k(exp(X := E, ([X,L] Env)) -> K)
+   = k(exp(E, ([X,L] Env)) -> writeTo(L) -> val(nothing) -> K) .
+endm
+
+mod SEQ-COMP-SEMANTICS is
+  including SEQ-COMP-SYNTAX .
+  including GENERIC-EXP-SEMANTICS .
+  vars E E' : Exp .  var K : Continuation .  var V : Value .  var Env : Env .
+  eq k(exp(E ; E', Env) -> K)
+   = k(exp(E, Env) -> discard -> exp(E', Env) -> K) .
+endm
+
+mod BLOCK-SEMANTICS is
+  including BLOCK-SYNTAX .
+  including GENERIC-EXP-SEMANTICS .
+  var E : Exp .  var K : Continuation .  var Env : Env .
+  eq k(exp({}, Env) -> K) = k(val(nothing) -> K) .
+  eq k(exp({E}, Env) -> K) = k(exp(E, Env) -> K) .
+endm
+
+mod LOOP-SEMANTICS is
+  including LOOP-SYNTAX .
+  including IF-SEMANTICS .
+  including BLOCK-SEMANTICS .
+  including SEQ-COMP-SEMANTICS .
+  vars Start Cond Step Body : Exp .  var K : Continuation .  var Env : Env .
+  eq for(Start ; Cond ; Step) Body = Start ; while Cond {Body ; Step} .
+  eq k(exp(while Cond Body, Env) -> K)
+   = k(exp(Cond, Env) -> if(Body ; while Cond Body, {}, Env) -> K) .
+endm
+
+mod FUN-SEMANTICS is
+  including FUN-SYNTAX .
+  including ARITHMETIC-EXP-SEMANTICS .
+  including BOOLEAN-EXP-SEMANTICS .
+  including IF-SEMANTICS .
+  including FUNCTION-SEMANTICS .
+  including LET-SEMANTICS .
+  including LETREC-SEMANTICS .
+  including LIST-SEMANTICS .
+  including ASSIGNMENT-SEMANTICS .
+  including SEQ-COMP-SEMANTICS .
+  including BLOCK-SEMANTICS .
+  including LOOP-SEMANTICS .
+
+  ops eval eval* : Exp -> [Value] .
+  op  [_]  : PLState -> [Value] .
+  op *[_]* : PLState -> [Value] .
+
+  var E : Exp .  var V : Value .  var S : PLState .
+  var N : Nat .  var Mem : Store .
+
+  eq eval(E) = [k(exp(E, (empty).Env) -> stop) nextLoc(0) mem(empty)] .
+  eq [k(val(V) -> stop) S] = V .
+
+  eq eval*(E) = *[k(exp(E, (empty).Env) -> stop) nextLoc(0) mem(empty)]* .
+  eq *[k(val(V) -> stop) nextLoc(N) mem(Mem)]* = V .
+endm
+
+
+-----------------------------
+--- CONCURRENT-FUN Syntax ---
+-----------------------------
+
+fmod THREAD-SYNTAX is
+  including GENERIC-EXP-SYNTAX .
+  ops spawn lock acquire_ release_ : Exp -> Exp .
+endfm
+
+fmod CONCURRENT-FUN-SYNTAX is
+  including FUN-SYNTAX .
+  including THREAD-SYNTAX .
+endfm
+
+parse (
+   let a = 0 and b = 0 and x = 0
+   in {
+      spawn( acquire lock(1) ; x := x + 1 ; release lock(1) ; a := 1 ) ;
+      spawn( acquire lock(1) ; x := x + 1 ; release lock(1) ; b := 1 ) ;
+      while (a == 0) or (b == 0) {} ;
+      x
+   }
+) .
+
+--------------------------------
+--- CONCURRENT-Fun Semantics ---
+--------------------------------
+
+fmod FUN-STATE is 
+  sorts PLStateAttribute PLState PLThreadStateAttribute PLThreadState . 
+  subsort PLStateAttribute < PLState . 
+  subsort PLThreadStateAttribute < PLThreadState . 
+  including ENVIRONMENT . 
+  including STORE . 
+  including CONTINUATION . 
+  op empty : -> PLState . 
+  op __ : PLState PLState -> PLState [assoc comm id: empty] . 
+  op empty : -> PLThreadState . 
+  op __ : PLThreadState PLThreadState -> PLThreadState [assoc comm id: empty] .
+  op nextLoc : Nat -> PLStateAttribute . 
+  op mem : Store -> PLStateAttribute . 
+  op k : Continuation -> PLThreadStateAttribute . 
+  op t : PLThreadState -> PLStateAttribute . 
+endfm
+
+mod FUN-HELPING-OPERATIONS is
+  including NAME-LIST .
+  including EXP-LIST .
+  including FUN-STATE .
+
+  var X : Name .  vars E E' : Exp .  var El : ExpList .  var K : Continuation .
+  vars V : Value .  var Vl : ValueList .  var Xl : NameList .
+  var Env : Env .  var Mem : Store .  var N : Nat .  var Ll : LocationList .
+  var TS : PLThreadState .
+
+  op exp : ExpList Env -> ContinuationItem .
+  op val_ : ValueList -> ContinuationItem .
+  eq k(exp((), Env) -> K) = k(val(nil) -> K) .
+  eq k(exp((E,E',El), Env) -> K) = k(exp(E, Env) -> exp((E',El), Env) -> K) .
+  eq k(val(V) -> exp(El, Env) -> K) = k(exp(El, Env) -> val(V) -> K) .
+  eq k(val(Vl) -> val(V) -> K) = k(val(V,Vl) -> K) .
+
+  op bindTo : NameList Env -> ContinuationItem .
+  op bindTo : NameList Env LocationList -> ContinuationItem .
+  eq bindTo(Xl,Env) = bindTo(Xl, Env, nil) .
+  rl t(k(val(V,Vl) -> bindTo((X,Xl), Env, Ll) -> K) TS)
+     mem(Mem) nextLoc(N)
+  => t(k(val(Vl) -> bindTo(Xl, Env[X <- loc(N)], (Ll,loc(N))) -> K) TS)
+     mem(Mem [loc(N),V]) nextLoc(N #+# 1) .
+  eq k(val(nil) -> bindTo((), Env, Ll) -> K) = k(pair(Env, Ll) -> K) .
+  rl t(k(bindTo((X,Xl), Env, Ll) -> K) TS) nextLoc(N)
+  => t(k(bindTo(Xl, Env[X <- loc(N)], (Ll,loc(N))) -> K) TS) nextLoc(N #+# 1) .
+  eq k(bindTo((), Env, Ll) -> K) = k(pair(Env,Ll) -> K) .
+
+  op writeTo_ : LocationList -> ContinuationItem .
+  rl t(k(val(Vl) -> writeTo(Ll) -> K) TS) mem(Mem)
+  => t(k(K) TS) mem(Mem[Ll <- Vl]) .
+
+  op pair : Env LocationList -> ContinuationItem .
+  ops exp exp* : ExpList -> ContinuationItem .
+  op writeTo : -> ContinuationItem .
+  eq pair(Env,Ll) -> exp(El) -> K = exp(El, Env) -> pair(Env, Ll) -> K .
+  eq pair(Env,Ll) -> writeTo -> K = writeTo(Ll) -> pair(Env,Ll) -> K .
+  eq pair(Env,Ll) -> exp*(E) -> K = exp(E, Env) -> K .
+
+  op discard : -> ContinuationItem .
+  eq k(val(Vl) -> discard -> K) = k(K) .
+endm
+
+mod GENERIC-EXP-SEMANTICS is
+  including FUN-HELPING-OPERATIONS .
+  op int : Int -> Value .
+  var I : Int .  var X : Name .  var L : Location .  var V : Value .
+  var K : Continuation .  var Env : Env .  var Mem : Store .
+  var TS : PLThreadState .
+
+  eq k(exp(I, Env) -> K) = k(val(int(I)) -> K) .
+  rl t(k(exp(X, ([X,L] Env)) -> K) TS) mem(Mem)
+  => t(k(val(Mem[L]) -> K) TS) mem(Mem) .
+endm
+
+fmod INT-SET is 
+  including INT# .
+  sort IntSet . subsort Int < IntSet .
+  op empty : -> IntSet .
+  op _#_ : IntSet IntSet -> IntSet [assoc comm id: empty] .
+  op _in_ : Int IntSet -> Bool .
+  var I : Int .  var Is : IntSet .
+  eq I in I # Is = true .
+  eq I in Is = false [owise] .
+endfm
+
+fmod COUNTER-SET is 
+  including INT-SET .
+  sorts Counter CounterSet . subsort Counter < CounterSet .
+  op empty : -> CounterSet .
+  op [_,_] : Int Int -> Counter .
+  op __ : CounterSet CounterSet -> CounterSet [assoc comm id: empty] .
+  op _-_ : IntSet CounterSet -> IntSet .
+  var I : Int .  var Is : IntSet .  var N : Nat .  var Cs : CounterSet .
+  eq (I # Is) - ([I,N] Cs) = Is - Cs .
+  eq Is - (empty).CounterSet = Is .
+endfm
+
+mod THREAD-SEMANTICS is
+  including THREAD-SYNTAX .
+  including GENERIC-EXP-SEMANTICS .
+  including COUNTER-SET .
+  op holds : CounterSet -> PLThreadStateAttribute .
+  op busy : IntSet -> PLStateAttribute .
+  op lockv : Int -> Value .
+  op die : -> Continuation .
+  ops lock acquire release : -> ContinuationItem .
+  var E : Exp .  var K : Continuation .  var Env : Env .
+  var TS : PLThreadState .  var V : Value .  var Cs : CounterSet .
+  var Is : IntSet .  var N : Nat .  var Nz : NzNat .  var I : Int .
+
+  eq t(k(exp(spawn(E), Env) -> K) TS)
+   = t(k(val(nothing) -> K) TS) t(k(exp(E, Env) -> die) holds(empty)) .
+
+  eq t(k(val(V) -> die) holds(Cs) TS) busy(Is) = busy(Is - Cs) .
+
+  eq k(exp(lock(E), Env) -> K) = k(exp(E, Env) -> lock -> K) .
+  eq k(val(int(I)) -> lock -> K) = k(val(lockv(I)) -> K) .
+
+  eq k(exp(acquire(E), Env) -> K) = k(exp(E, Env) -> acquire -> K) .
+  eq k(val(lockv(I)) -> acquire -> K) holds([I, N] Cs)
+   = k(val(nothing) -> K) holds([I, N #+# 1] Cs) .
+ crl t(k(val(lockv(I)) -> acquire -> K) holds(Cs) TS) busy(Is)
+  => t(k(val(nothing) -> K) holds([I, 0] Cs) TS) busy(I # Is)
+     if not(I in Is) .
+
+  eq k(exp(release(E), Env) -> K) = k(exp(E, Env) -> release -> K) .
+  eq k(val(lockv(I)) -> release -> K) holds([I, Nz] Cs)
+   = k(val(nothing) -> K) holds([I, Nz #-# 1] Cs) .
+  eq t(k(val(lockv(I)) -> release -> K) holds([I, 0] Cs) TS) busy(I # Is)
+   = t(k(val(nothing) -> K) holds(Cs) TS) busy(Is) .
+endm
+
+mod CONCURRENT-FUN-SEMANTICS is
+  including FUN-SYNTAX .
+  including ARITHMETIC-EXP-SEMANTICS .
+  including BOOLEAN-EXP-SEMANTICS .
+  including IF-SEMANTICS .
+  including FUNCTION-SEMANTICS .
+  including LET-SEMANTICS .
+  including LETREC-SEMANTICS .
+  including LIST-SEMANTICS .
+  including ASSIGNMENT-SEMANTICS .
+  including SEQ-COMP-SEMANTICS .
+  including BLOCK-SEMANTICS .
+  including LOOP-SEMANTICS .
+  including THREAD-SYNTAX .
+  including THREAD-SEMANTICS .
+
+  op eval_ : Exp ~> Value .
+  op [_] : PLState ~> Value .
+  var E : Exp . var V : Value . var S : PLState .
+  var TS : PLThreadState .
+
+  eq eval(E)
+   = [t(k(exp(E, (empty).Env) -> stop) holds(empty)) 
+      nextLoc(0) mem(empty) busy(empty)] .
+  rl [t(k(val(V) -> stop) TS) S] => V .
+endm
+
+search eval( 
+    let x = 0 
+    in { 
+      spawn(x := x + 1) ; 
+      spawn(x := x + 1) ; 
+      x 
+    } 
+)  =>! X:[Value] .
+***> int(0), int(1), int(2)
+
+search [3] eval(
+    let a = 0 and c = 0
+    in {
+      spawn (a := 1) ;
+      while (a == 0) c := c + 1 ;
+      c
+    }
+) =>! X:[Value] .
+***> int(0), int(1), int(2)
+
+search eval(
+   let a = 0 and b = 0 and x = 0
+   in {
+      spawn( acquire lock(1) ; x := x + 1 ; release lock(1) ; a := 1 ) ;
+      spawn( acquire lock(1) ; x := x + 1 ; release lock(1) ; b := 1 ) ;
+      while (a == 0) or (b == 0) {} ;
+      x
+   }
+) =>! X:[Value] .
+***> no result return
+
+search eval(
+  let a = 0 and b = 0 and x = 0
+  in {
+       spawn(x := x + 1 ; a := 1) ;
+       spawn(x := x + 1 ; b := 1) ;
+       while (a == 0) or (b == 0) {} ;
+       x
+     }
+) =>! X:[Value] .
+***> in(1), int(2), or run forever
